@@ -312,7 +312,9 @@ jobs:
             echo "| payload | ${PAYLOAD:-skipped} |"
             echo
             echo "This fork publishes the kernel.macho artifact for the thyme port; everything else stays as upstream."
-            xcodebuild -version | head -n 1
+            # `xcodebuild -version | head -n 1` aborts the runner with a broken-pipe
+          # NSException and fails an otherwise successful build; print it whole.
+          xcodebuild -version 2>&1 | tail -n 2 || true
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Remove proprietary inputs
