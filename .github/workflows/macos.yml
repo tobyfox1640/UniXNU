@@ -230,6 +230,31 @@ jobs:
           ./unixnu build userdata
           df -h "$GITHUB_WORKSPACE"
 
+      - name: Package the userdata image for transfer
+        if: contains(inputs.steps, 'userdata') && steps.userdata.outcome == 'success'
+        run: |
+          img=$(ls out/*/userdata/userdata-root.img 2>/dev/null | head -n 1)
+          if [ -z "$img" ]; then
+            echo "no userdata image was produced"
+            find out -maxdepth 3 -name '*.img' -o -maxdepth 3 -name 'userdata*' | head -20
+            exit 1
+          fi
+          ls -l "$img"
+          shasum -a 256 "$img" > "$RUNNER_TEMP/userdata.sha256" || sha256sum "$img" > "$RUNNER_TEMP/userdata.sha256"
+          cat "$RUNNER_TEMP/userdata.sha256"
+          mkdir -p "$RUNNER_TEMP/parts"
+          split -b 900m -d -a 2 "$img" "$RUNNER_TEMP/parts/userdata-root.img.part"
+          cp "$RUNNER_TEMP/userdata.sha256" "$RUNNER_TEMP/parts/"
+          ls -l "$RUNNER_TEMP/parts"
+
+      - name: Upload the userdata image
+        if: contains(inputs.steps, 'userdata') && steps.userdata.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unixnu-thyme-userdata-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/parts/*
+          retention-days: 7
+
       - name: Build payload
         id: payload
         if: contains(inputs.steps, 'payload')
